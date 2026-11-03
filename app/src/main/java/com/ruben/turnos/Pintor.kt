@@ -120,8 +120,8 @@ object Pintor {
             // Fondo de la celda
             val fondo: Int = if (vista == "solo") {
                 when {
-                    t != null -> colorTurno(t)
                     pet != null -> if (conc) PET_CONCEDIDA else PET_PEDIDA
+                    t != null -> colorTurno(t)
                     festivo != null -> FESTIVO
                     else -> Color.WHITE
                 }
@@ -131,7 +131,7 @@ object Pintor {
             rect(r, fondo)
 
             // Número del día
-            val colorNum = if (columna == 6 || festivo != null) ROJO else (if (t != null && vista == "solo") textoTurno(t) else OSCURO)
+            val colorNum = if (columna == 6 || festivo != null) ROJO else (if (t != null && pet == null && vista == "solo") textoTurno(t) else OSCURO)
             val tamNum = lado * 0.24f
             texto(d.toString(), r.right - lado * 0.05f, r.top + lado * 0.05f + tamNum * 0.5f, tamNum, r.width() * 0.6f, Paint.Align.RIGHT, false, colorNum)
 
@@ -141,20 +141,14 @@ object Pintor {
             var colorFranja = NOTA
             if (nota != null) {
                 textoFranja = nota
-            } else if (vista == "solo" && t != null && pet != null) {
-                textoFranja = pet + (if (conc) "" else " ?")
-                colorFranja = if (conc) PET_CONCEDIDA else PET_PEDIDA
             }
 
             if (vista == "solo") {
-                val centro = t ?: pet
-                if (centro != null) {
-                    val cy = r.top + r.height() * (if (textoFranja != null) 0.52f else 0.62f)
-                    if (t != null) {
-                        texto(t, r.centerX(), cy, lado * 0.30f, r.width() * 0.9f, Paint.Align.CENTER, true, textoTurno(t))
-                    } else {
-                        texto(centro + (if (conc) "" else " ?"), r.centerX(), cy, lado * 0.22f, r.width() * 0.9f, Paint.Align.CENTER, true, col("#333333"))
-                    }
+                val cy = r.top + r.height() * (if (textoFranja != null) 0.52f else 0.62f)
+                if (pet != null) {
+                    texto(pet + (if (conc) "" else " ?"), r.centerX(), cy, lado * 0.22f, r.width() * 0.9f, Paint.Align.CENTER, true, col("#333333"))
+                } else if (t != null) {
+                    texto(t, r.centerX(), cy, lado * 0.30f, r.width() * 0.9f, Paint.Align.CENTER, true, textoTurno(t))
                 }
             } else if (datos != null) {
                 val lista = ArrayList<Pair<Usuario, Entrada?>>()
@@ -175,8 +169,8 @@ object Pintor {
                         val libre = et == null && ep == null
                         val cr = RectF(r.left + pad, top + i * chipH + 0.5f, r.right - pad, top + (i + 1) * chipH - 0.5f)
                         val colorChip: Int = when {
-                            et != null -> colorTurno(et)
                             ep != null -> if (concE) PET_CONCEDIDA else PET_PEDIDA
+                            et != null -> colorTurno(et)
                             else -> col("#ECEFF1")
                         }
                         p.style = Paint.Style.FILL
@@ -191,7 +185,7 @@ object Pintor {
                         val tam = chipH * 0.66f
                         val colorTxt = if (libre) col("#78909C") else col("#333333")
                         texto(u.ini, cr.left + cr.width() * 0.06f, cr.centerY(), tam, cr.width() * 0.4f, Paint.Align.LEFT, true, colorTxt)
-                        val valor: String = if (et != null) et else if (ep != null) ep + (if (concE) "" else "?") else "L"
+                        val valor: String = if (ep != null) ep + (if (concE) "" else "?") else if (et != null) et else "L"
                         texto(valor, cr.left + cr.width() * 0.46f, cr.centerY(), tam, cr.width() * 0.52f, Paint.Align.LEFT, false, colorTxt)
                     }
                 }
