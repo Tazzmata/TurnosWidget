@@ -35,7 +35,7 @@ object Pintor {
     private val ROJO = col("#D32F2F")
     private val OSCURO = col("#222222")
 
-        fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int): Bitmap {
+    fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -76,7 +76,7 @@ object Pintor {
         val cw = (w - 2 * borde) / 7f
         val ch = (h - 2 * borde - cabH) / 6f
 
-        val nombresDia = arrayOf("LUN", "MAR", "MI\u00c9", "JUE", "VIE", "S\u00c1B", "DOM")
+        val nombresDia = arrayOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
         for (i in 0 until 7) {
             val r = RectF(izq + i * cw + gap / 2, arr + gap / 2, izq + (i + 1) * cw - gap / 2, arr + cabH - gap / 2)
             rect(r, col("#DDDDDD"))
@@ -117,6 +117,7 @@ object Pintor {
 
             if (fuera) c.saveLayerAlpha(r, 140)
 
+            // Fondo de la celda
             val fondo: Int = if (vista == "solo") {
                 when {
                     t != null -> colorTurno(t)
@@ -129,10 +130,12 @@ object Pintor {
             }
             rect(r, fondo)
 
+            // Número del día
             val colorNum = if (columna == 6 || festivo != null) ROJO else (if (t != null && vista == "solo") textoTurno(t) else OSCURO)
             val tamNum = lado * 0.24f
             texto(d.toString(), r.right - lado * 0.05f, r.top + lado * 0.05f + tamNum * 0.5f, tamNum, r.width() * 0.6f, Paint.Align.RIGHT, false, colorNum)
 
+            // Franja inferior: nota (azul) o, si hay turno y petición, la petición
             val altoFranja = r.height() * 0.24f
             var textoFranja: String? = null
             var colorFranja = NOTA
@@ -217,9 +220,10 @@ object Pintor {
             p.style = Paint.Style.FILL
             p.color = Color.argb(230, 255, 255, 255)
             c.drawRoundRect(caja, radio, radio, p)
-            texto("Sin datos: revisa el enlace o la conexi\u00f3n", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, OSCURO)
+            texto("Sin datos: revisa el enlace o la conexión", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, OSCURO)
         }
 
+        // Marco exterior
         p.style = Paint.Style.STROKE
         p.strokeWidth = borde * 2f
         p.color = OSCURO
