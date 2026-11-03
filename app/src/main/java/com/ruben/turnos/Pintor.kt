@@ -35,7 +35,7 @@ object Pintor {
     private val ROJO = col("#D32F2F")
     private val OSCURO = col("#222222")
 
-    fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int): Bitmap {
+        fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -76,7 +76,7 @@ object Pintor {
         val cw = (w - 2 * borde) / 7f
         val ch = (h - 2 * borde - cabH) / 6f
 
-        val nombresDia = arrayOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
+        val nombresDia = arrayOf("LUN", "MAR", "MI\u00c9", "JUE", "VIE", "S\u00c1B", "DOM")
         for (i in 0 until 7) {
             val r = RectF(izq + i * cw + gap / 2, arr + gap / 2, izq + (i + 1) * cw - gap / 2, arr + cabH - gap / 2)
             rect(r, col("#DDDDDD"))
@@ -117,7 +117,6 @@ object Pintor {
 
             if (fuera) c.saveLayerAlpha(r, 140)
 
-            // Fondo de la celda
             val fondo: Int = if (vista == "solo") {
                 when {
                     t != null -> colorTurno(t)
@@ -130,12 +129,10 @@ object Pintor {
             }
             rect(r, fondo)
 
-            // Número del día
             val colorNum = if (columna == 6 || festivo != null) ROJO else (if (t != null && vista == "solo") textoTurno(t) else OSCURO)
             val tamNum = lado * 0.24f
             texto(d.toString(), r.right - lado * 0.05f, r.top + lado * 0.05f + tamNum * 0.5f, tamNum, r.width() * 0.6f, Paint.Align.RIGHT, false, colorNum)
 
-            // Franja inferior: nota (azul) o, si hay turno y petición, la petición
             val altoFranja = r.height() * 0.24f
             var textoFranja: String? = null
             var colorFranja = NOTA
@@ -156,11 +153,10 @@ object Pintor {
                         texto(centro + (if (conc) "" else " ?"), r.centerX(), cy, lado * 0.22f, r.width() * 0.9f, Paint.Align.CENTER, true, col("#333333"))
                     }
                 }
-            } else if (datos != null && dia != null) {
-                val lista = ArrayList<Pair<Usuario, Entrada>>()
+            } else if (datos != null) {
+                val lista = ArrayList<Pair<Usuario, Entrada?>>()
                 for (u in datos.usuarios) {
-                    val e = dia.usuarios[u.nombre]
-                    if (e != null && (e.t != null || e.p != null)) lista.add(Pair(u, e))
+                    lista.add(Pair(u, dia?.usuarios?.get(u.nombre)))
                 }
                 if (lista.isNotEmpty()) {
                     val top = r.top + r.height() * 0.27f
@@ -170,9 +166,16 @@ object Pintor {
                     for (i in lista.indices) {
                         val u = lista[i].first
                         val e = lista[i].second
-                        val et = e.t
+                        val et: String? = e?.t
+                        val ep: String? = e?.p
+                        val concE: Boolean = e?.conc == true
+                        val libre = et == null && ep == null
                         val cr = RectF(r.left + pad, top + i * chipH + 0.5f, r.right - pad, top + (i + 1) * chipH - 0.5f)
-                        val colorChip = if (et != null) colorTurno(et) else (if (e.conc) PET_CONCEDIDA else PET_PEDIDA)
+                        val colorChip: Int = when {
+                            et != null -> colorTurno(et)
+                            ep != null -> if (concE) PET_CONCEDIDA else PET_PEDIDA
+                            else -> col("#ECEFF1")
+                        }
                         p.style = Paint.Style.FILL
                         p.color = colorChip
                         c.drawRoundRect(cr, chipH * 0.25f, chipH * 0.25f, p)
@@ -183,9 +186,10 @@ object Pintor {
                             c.drawRoundRect(cr, chipH * 0.25f, chipH * 0.25f, p)
                         }
                         val tam = chipH * 0.66f
-                        texto(u.ini, cr.left + cr.width() * 0.06f, cr.centerY(), tam, cr.width() * 0.4f, Paint.Align.LEFT, true, col("#333333"))
-                        val valor = (et ?: e.p ?: "") + (if (et == null && !e.conc) "?" else "")
-                        texto(valor, cr.left + cr.width() * 0.46f, cr.centerY(), tam, cr.width() * 0.52f, Paint.Align.LEFT, false, col("#333333"))
+                        val colorTxt = if (libre) col("#78909C") else col("#333333")
+                        texto(u.ini, cr.left + cr.width() * 0.06f, cr.centerY(), tam, cr.width() * 0.4f, Paint.Align.LEFT, true, colorTxt)
+                        val valor: String = if (et != null) et else if (ep != null) ep + (if (concE) "" else "?") else "L"
+                        texto(valor, cr.left + cr.width() * 0.46f, cr.centerY(), tam, cr.width() * 0.52f, Paint.Align.LEFT, false, colorTxt)
                     }
                 }
             }
@@ -213,10 +217,9 @@ object Pintor {
             p.style = Paint.Style.FILL
             p.color = Color.argb(230, 255, 255, 255)
             c.drawRoundRect(caja, radio, radio, p)
-            texto("Sin datos: revisa el enlace o la conexión", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, OSCURO)
+            texto("Sin datos: revisa el enlace o la conexi\u00f3n", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, OSCURO)
         }
 
-        // Marco exterior
         p.style = Paint.Style.STROKE
         p.strokeWidth = borde * 2f
         p.color = OSCURO
