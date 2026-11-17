@@ -1,24 +1,15 @@
-# Turnos · Widget de calendario (Android)
+# Turnos · Widget de calendario (Android) — versión 2
 
-## 1. Apps Script (una sola vez)
-1. En Codigo.gs, sustituye `doGet` por la versión nueva y pega al final las funciones de `api.gs`.
-2. Implementar > Gestionar implementaciones > editar > Nueva versión > Implementar
-   (acceso: "Cualquier persona", igual que para el calendario ICS).
+## Novedades
+- Clave de firma fija (app/debug.keystore): desde esta versión, las actualizaciones se instalan encima.
+- Aviso la víspera (notificación con turno, petición o nota del día siguiente) con hora configurable.
+- Pulsar un día del widget abre su detalle (turnos de todos, notas completas, peticiones, saldo).
+- Tema oscuro y opacidad del fondo ajustables.
+- Saldo de días (vacaciones, asuntos propios...) en el pie del widget.
 
-## 2. Compilar el APK (sin instalar nada en tu PC)
-1. Crea un repositorio en GitHub (puede ser privado) y sube TODO el contenido de esta carpeta
-   (incluida la carpeta oculta `.github`).
-2. Pestaña "Actions" > "Compilar APK" > Run workflow (o se lanza solo al subir).
-3. Al terminar (unos 3-5 min), entra en la ejecución y descarga el artefacto `turnos-widget-apk`.
-   Dentro está `app-debug.apk`.
-Alternativa: abre la carpeta con Android Studio y pulsa Build > Build APK.
-
-## 3. Instalar y usar
-1. Pasa el APK al móvil e instálalo (permite "instalar apps desconocidas" si lo pide).
-2. Abre "Turnos", pega el enlace de "Mi calendario" de la app web y pulsa "Guardar y probar".
-3. Pantalla de inicio > mantén pulsado > Widgets > Turnos. Mejor en tamaño 4x4.
-
-## Controles del widget
-- ‹ › cambian de mes · pulsar el título vuelve a hoy y refresca · 👤/👥 alterna "solo yo" / "todos"
-- Pulsar el calendario abre la app web de turnos.
-- Se actualiza solo cada ~30 min y al navegar.
+## Actualizar
+1. Apps Script: sustituye `servirApi_` por la nueva y despliega Nueva versión.
+2. GitHub: sube TODO el contenido de esta carpeta (se sobrescribe lo existente; incluye app/debug.keystore).
+3. Actions compila el APK. Esta primera vez hay que DESINSTALAR la app anterior (cambia la firma);
+   desde la siguiente se instalará encima sin perder nada.
+4. Abre la app, pega el enlace de «Mi calendario», Guardar y probar, y revisa los ajustes.

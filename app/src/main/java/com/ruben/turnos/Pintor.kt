@@ -30,15 +30,31 @@ object Pintor {
 
     private val PET_CONCEDIDA = col("#A5D6A7")
     private val PET_PEDIDA = col("#FFCC80")
-    private val FESTIVO = col("#FFEBEE")
     private val NOTA = col("#26C6DA")
     private val ROJO = col("#D32F2F")
     private val OSCURO = col("#222222")
 
-    fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int): Bitmap {
+    private fun conAlfa(color: Int, a: Int): Int =
+        Color.argb(a * Color.alpha(color) / 255, Color.red(color), Color.green(color), Color.blue(color))
+
+    fun dibujar(datos: Datos?, vista: String, anio: Int, mes0: Int, w: Int, h: Int, alfaPct: Int, oscuroTema: Boolean): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val alfa = alfaPct.coerceIn(0, 100) * 255 / 100
+
+        // Paleta según el tema
+        val cBase = if (oscuroTema) col("#26282B") else Color.WHITE
+        val cCab = if (oscuroTema) col("#3C4043") else col("#DDDDDD")
+        val cTxtCab = if (oscuroTema) col("#E8EAED") else OSCURO
+        val cLinea = if (oscuroTema) col("#5F6368") else col("#8AA9D4")
+        val cNum = if (oscuroTema) col("#E8EAED") else OSCURO
+        val cFestivo = if (oscuroTema) col("#4A2C30") else col("#FFEBEE")
+        val cDom = if (oscuroTema) col("#EF5350") else ROJO
+        val cLibreFondo = if (oscuroTema) col("#3A3D40") else col("#ECEFF1")
+        val cLibreTxt = if (oscuroTema) col("#9AA0A6") else col("#78909C")
+        val cMarco = if (oscuroTema) col("#9AA0A6") else OSCURO
+        val cHoy = if (oscuroTema) col("#64B5F6") else col("#1565C0")
 
         fun texto(s: String, x: Float, centroY: Float, tam: Float, maxW: Float, alin: Paint.Align, negrita: Boolean, color: Int) {
             p.style = Paint.Style.FILL
@@ -62,13 +78,11 @@ object Pintor {
 
         val borde = w * 0.009f
         val radio = w * 0.02f
-        val gap = maxOf(1f, w * 0.0016f)
         val marco = RectF(0f, 0f, w.toFloat(), h.toFloat())
         val ruta = Path()
         ruta.addRoundRect(marco, radio, radio, Path.Direction.CW)
         c.save()
         c.clipPath(ruta)
-        rect(marco, col("#8AA9D4"))
 
         val cabH = h * 0.06f
         val izq = borde
@@ -78,20 +92,16 @@ object Pintor {
 
         val nombresDia = arrayOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
         for (i in 0 until 7) {
-            val r = RectF(izq + i * cw + gap / 2, arr + gap / 2, izq + (i + 1) * cw - gap / 2, arr + cabH - gap / 2)
-            rect(r, col("#DDDDDD"))
-            texto(nombresDia[i], r.centerX(), r.centerY(), cabH * 0.55f, cw * 0.9f, Paint.Align.CENTER, false, OSCURO)
+            val r = RectF(izq + i * cw, arr, izq + (i + 1) * cw, arr + cabH)
+            rect(r, conAlfa(cCab, maxOf(alfa, 160)))
+            texto(nombresDia[i], r.centerX(), r.centerY(), cabH * 0.55f, cw * 0.9f, Paint.Align.CENTER, false, cTxtCab)
         }
 
         val cal = Calendar.getInstance()
         cal.set(anio, mes0, 1, 12, 0, 0)
         val dow = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7
         cal.add(Calendar.DAY_OF_MONTH, -dow)
-        val hoy = Calendar.getInstance()
-        val claveHoy = String.format(
-            Locale.ROOT, "%04d-%02d-%02d",
-            hoy.get(Calendar.YEAR), hoy.get(Calendar.MONTH) + 1, hoy.get(Calendar.DAY_OF_MONTH)
-        )
+        val claveHoy = Fechas.hoy()
         val yo: String? = datos?.yo
 
         for (k in 0 until 42) {
@@ -99,7 +109,7 @@ object Pintor {
             val columna = k % 7
             val x0 = izq + columna * cw
             val y0 = arr + cabH + fila * ch
-            val r = RectF(x0 + gap / 2, y0 + gap / 2, x0 + cw - gap / 2, y0 + ch - gap / 2)
+            val r = RectF(x0, y0, x0 + cw, y0 + ch)
             val a = cal.get(Calendar.YEAR)
             val m = cal.get(Calendar.MONTH)
             val d = cal.get(Calendar.DAY_OF_MONTH)
@@ -117,36 +127,37 @@ object Pintor {
 
             if (fuera) c.saveLayerAlpha(r, 140)
 
-            // Fondo de la celda
+            // Fondo de la celda: la petición tapa al turno
+            val celdaColor = vista == "solo" && (pet != null || t != null)
             val fondo: Int = if (vista == "solo") {
                 when {
                     pet != null -> if (conc) PET_CONCEDIDA else PET_PEDIDA
                     t != null -> colorTurno(t)
-                    festivo != null -> FESTIVO
-                    else -> Color.WHITE
+                    festivo != null -> cFestivo
+                    else -> cBase
                 }
             } else {
-                if (festivo != null) FESTIVO else Color.WHITE
+                if (festivo != null) cFestivo else cBase
             }
-            rect(r, fondo)
+            rect(r, conAlfa(fondo, alfa))
 
             // Número del día
-            val colorNum = if (columna == 6 || festivo != null) ROJO else (if (t != null && pet == null && vista == "solo") textoTurno(t) else OSCURO)
+            val colorNum: Int = when {
+                columna == 6 || festivo != null -> if (celdaColor) ROJO else cDom
+                celdaColor -> if (pet == null && t != null) textoTurno(t) else OSCURO
+                else -> cNum
+            }
             val tamNum = lado * 0.24f
             texto(d.toString(), r.right - lado * 0.05f, r.top + lado * 0.05f + tamNum * 0.5f, tamNum, r.width() * 0.6f, Paint.Align.RIGHT, false, colorNum)
 
-            // Franja inferior: nota (azul) o, si hay turno y petición, la petición
+            // Franja inferior con la nota
             val altoFranja = r.height() * 0.24f
-            var textoFranja: String? = null
-            var colorFranja = NOTA
-            if (nota != null) {
-                textoFranja = nota
-            }
+            val textoFranja: String? = nota
 
             if (vista == "solo") {
                 val cy = r.top + r.height() * (if (textoFranja != null) 0.52f else 0.62f)
                 if (pet != null) {
-                    texto(pet + (if (conc) "" else " ?"), r.centerX(), cy, lado * 0.22f, r.width() * 0.9f, Paint.Align.CENTER, true, col("#333333"))
+                    texto(pet + (if (conc) "" else " ?"), r.centerX(), cy, lado * 0.22f, r.width() * 0.9f, Paint.Align.CENTER, true, OSCURO)
                 } else if (t != null) {
                     texto(t, r.centerX(), cy, lado * 0.30f, r.width() * 0.9f, Paint.Align.CENTER, true, textoTurno(t))
                 }
@@ -171,7 +182,7 @@ object Pintor {
                         val colorChip: Int = when {
                             ep != null -> if (concE) PET_CONCEDIDA else PET_PEDIDA
                             et != null -> colorTurno(et)
-                            else -> col("#ECEFF1")
+                            else -> cLibreFondo
                         }
                         p.style = Paint.Style.FILL
                         p.color = colorChip
@@ -179,11 +190,11 @@ object Pintor {
                         if (u.yo) {
                             p.style = Paint.Style.STROKE
                             p.strokeWidth = maxOf(1.5f, w * 0.002f)
-                            p.color = col("#444444")
+                            p.color = if (oscuroTema) col("#BDC1C6") else col("#444444")
                             c.drawRoundRect(cr, chipH * 0.25f, chipH * 0.25f, p)
                         }
                         val tam = chipH * 0.66f
-                        val colorTxt = if (libre) col("#78909C") else col("#333333")
+                        val colorTxt = if (libre) cLibreTxt else col("#333333")
                         texto(u.ini, cr.left + cr.width() * 0.06f, cr.centerY(), tam, cr.width() * 0.4f, Paint.Align.LEFT, true, colorTxt)
                         val valor: String = if (ep != null) ep + (if (concE) "" else "?") else if (et != null) et else "L"
                         texto(valor, cr.left + cr.width() * 0.46f, cr.centerY(), tam, cr.width() * 0.52f, Paint.Align.LEFT, false, colorTxt)
@@ -193,7 +204,7 @@ object Pintor {
 
             if (textoFranja != null) {
                 val fr = RectF(r.left, r.bottom - altoFranja, r.right, r.bottom)
-                rect(fr, colorFranja)
+                rect(fr, NOTA)
                 texto(textoFranja, fr.centerX(), fr.centerY(), altoFranja * 0.62f, fr.width() * 0.92f, Paint.Align.CENTER, false, OSCURO)
             }
 
@@ -202,25 +213,37 @@ object Pintor {
             if (clave == claveHoy) {
                 p.style = Paint.Style.STROKE
                 p.strokeWidth = maxOf(2.5f, w * 0.004f)
-                p.color = col("#1565C0")
+                p.color = cHoy
                 val ins = p.strokeWidth / 2f
                 c.drawRect(r.left + ins, r.top + ins, r.right - ins, r.bottom - ins, p)
             }
             cal.add(Calendar.DAY_OF_MONTH, 1)
         }
 
+        // Líneas de la rejilla (encima de las celdas, para que no se tiñan con la transparencia)
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = maxOf(1.5f, w * 0.0016f)
+        p.color = conAlfa(cLinea, maxOf(alfa, 120))
+        for (i in 1 until 7) {
+            c.drawLine(izq + i * cw, arr, izq + i * cw, arr + cabH + 6 * ch, p)
+        }
+        for (j in 0 until 6) {
+            val y = arr + cabH + j * ch
+            c.drawLine(izq, y, izq + 7 * cw, y, p)
+        }
+
         if (datos == null) {
             val caja = RectF(w * 0.08f, h * 0.42f, w * 0.92f, h * 0.58f)
             p.style = Paint.Style.FILL
-            p.color = Color.argb(230, 255, 255, 255)
+            p.color = if (oscuroTema) Color.argb(235, 38, 40, 43) else Color.argb(230, 255, 255, 255)
             c.drawRoundRect(caja, radio, radio, p)
-            texto("Sin datos: revisa el enlace o la conexión", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, OSCURO)
+            texto("Sin datos: revisa el enlace o la conexión", caja.centerX(), caja.centerY(), w * 0.04f, caja.width() * 0.92f, Paint.Align.CENTER, true, cTxtCab)
         }
 
         // Marco exterior
         p.style = Paint.Style.STROKE
         p.strokeWidth = borde * 2f
-        p.color = OSCURO
+        p.color = cMarco
         c.drawPath(ruta, p)
         c.restore()
         return bmp

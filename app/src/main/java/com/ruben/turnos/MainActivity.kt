@@ -1,9 +1,11 @@
 package com.ruben.turnos
 
 import android.app.Activity
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -15,6 +17,8 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.ScrollView
+import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 
 class MainActivity : Activity() {
@@ -25,6 +29,8 @@ class MainActivity : Activity() {
     private lateinit var vistaPrevia: ImageView
     private lateinit var rbSolo: RadioButton
     private lateinit var rbTodos: RadioButton
+    private lateinit var botonHora: Button
+    private lateinit var etiquetaOpacidad: TextView
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
@@ -36,6 +42,31 @@ class MainActivity : Activity() {
         }
         rbSolo.isChecked = Prefs.vista(this) == "solo"
         rbTodos.isChecked = Prefs.vista(this) != "solo"
+        refrescarVistaPrevia()
+    }
+
+    private fun seccion(raiz: LinearLayout, texto: String) {
+        val tv = TextView(this)
+        tv.text = texto
+        tv.textSize = 17f
+        tv.setTextColor(Color.parseColor("#111111"))
+        tv.setPadding(0, dp(18), 0, dp(4))
+        raiz.addView(tv)
+    }
+
+    private fun interruptor(texto: String, marcado: Boolean, alCambiar: (Boolean) -> Unit): Switch {
+        val s = Switch(this)
+        s.text = texto
+        s.isChecked = marcado
+        s.setPadding(0, dp(6), 0, dp(6))
+        s.setOnCheckedChangeListener { _, v -> alCambiar(v) }
+        return s
+    }
+
+    private fun textoHora(): String =
+        String.format("%02d:%02d", Prefs.avisoHora(this), Prefs.avisoMin(this))
+
+    private fun aplicarCambios() {
         refrescarVistaPrevia()
     }
 
@@ -53,7 +84,8 @@ class MainActivity : Activity() {
         val ayuda = TextView(this)
         ayuda.text = "1) En la app de turnos, abre «Mi calendario», copia el enlace y pégalo aquí.\n" +
             "2) Pulsa Guardar y probar.\n" +
-            "3) Mantén pulsada la pantalla de inicio → Widgets → Turnos y colócalo."
+            "3) Mantén pulsada la pantalla de inicio → Widgets → Turnos y colócalo.\n" +
+            "Pulsa cualquier día del widget para ver su detalle."
         ayuda.textSize = 14f
         ayuda.setPadding(0, dp(8), 0, dp(12))
         raiz.addView(ayuda)
@@ -72,9 +104,78 @@ class MainActivity : Activity() {
 
         estado = TextView(this)
         estado.textSize = 14f
-        estado.setPadding(0, dp(6), 0, dp(10))
+        estado.setPadding(0, dp(6), 0, dp(6))
         raiz.addView(estado)
 
+        // ----- Avisos -----
+        seccion(raiz, "Aviso la víspera")
+        raiz.addView(interruptor("Avisarme el día antes (turno, petición o nota)", Prefs.avisoOn(this)) { activo ->
+            Prefs.setAvisoOn(this, activo)
+            if (activo && Build.VERSION.SDK_INT >= 33) {
+                requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
+            }
+            Aviso.programar(this)
+        })
+        botonHora = Button(this)
+        botonHora.text = "Hora del aviso: " + textoHora()
+        botonHora.setOnClickListener {
+            TimePickerDialog(
+                this,
+                TimePickerDialog.OnTimeSetListener { _, h, m ->
+                    Prefs.setAvisoHora(this, h, m)
+                    botonHora.text = "Hora del aviso: " + textoHora()
+                    Aviso.programar(this)
+                },
+                Prefs.avisoHora(this),
+                Prefs.avisoMin(this),
+                true
+            ).show()
+        }
+        raiz.addView(botonHora)
+        val probar = Button(this)
+        probar.text = "Probar aviso ahora"
+        probar.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= 33) {
+                requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
+            }
+            Thread { Aviso.avisar(this, true) }.start()
+        }
+        raiz.addView(probar)
+
+        // ----- Aspecto -----
+        seccion(raiz, "Aspecto del widget")
+        raiz.addView(interruptor("Tema oscuro", Prefs.oscuro(this)) { v ->
+            Prefs.setOscuro(this, v)
+            aplicarCambios()
+        })
+        raiz.addView(interruptor("Mostrar saldo de días", Prefs.mostrarSaldo(this)) { v ->
+            Prefs.setMostrarSaldo(this, v)
+            aplicarCambios()
+        })
+        etiquetaOpacidad = TextView(this)
+        etiquetaOpacidad.textSize = 14f
+        etiquetaOpacidad.text = "Opacidad del fondo: " + Prefs.fondoAlfa(this) + "%"
+        etiquetaOpacidad.setPadding(0, dp(8), 0, 0)
+        raiz.addView(etiquetaOpacidad)
+        val barra = SeekBar(this)
+        barra.max = 100
+        barra.progress = Prefs.fondoAlfa(this)
+        barra.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                etiquetaOpacidad.text = "Opacidad del fondo: " + progress + "%"
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Prefs.setFondoAlfa(this@MainActivity, barra.progress)
+                aplicarCambios()
+            }
+        })
+        raiz.addView(barra)
+
+        // ----- Vista previa -----
+        seccion(raiz, "Vista previa")
         val grupo = RadioGroup(this)
         grupo.orientation = RadioGroup.HORIZONTAL
         rbSolo = RadioButton(this)
@@ -111,6 +212,7 @@ class MainActivity : Activity() {
 
         vistaPrevia = ImageView(this)
         vistaPrevia.adjustViewBounds = true
+        vistaPrevia.setBackgroundColor(Color.parseColor("#6FA0DC"))
         raiz.addView(vistaPrevia, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         val abrir = Button(this)
@@ -173,7 +275,9 @@ class MainActivity : Activity() {
         val par = Prefs.mes(this)
         titulo.text = CalendarWidget.nombreMes(par.first, par.second)
         val datos = Prefs.datos(this, par.first, par.second)
-        vistaPrevia.setImageBitmap(Pintor.dibujar(datos, Prefs.vista(this), par.first, par.second, 900, 900))
+        vistaPrevia.setImageBitmap(
+            Pintor.dibujar(datos, Prefs.vista(this), par.first, par.second, 900, 900, Prefs.fondoAlfa(this), Prefs.oscuro(this))
+        )
         CalendarWidget.pintarTodos(this)
     }
 }

@@ -60,4 +60,32 @@ object Prefs {
         val json = cache(c, claveMes(anio, mes0)) ?: return null
         return Modelo.parsear(json)
     }
+
+    // ----- Avisos de la víspera -----
+    fun avisoOn(c: Context): Boolean = sp(c).getBoolean("avisoOn", false)
+    fun setAvisoOn(c: Context, v: Boolean) {
+        sp(c).edit().putBoolean("avisoOn", v).apply()
+    }
+
+    fun avisoHora(c: Context): Int = sp(c).getInt("avisoHora", 20)
+    fun avisoMin(c: Context): Int = sp(c).getInt("avisoMin", 0)
+    fun setAvisoHora(c: Context, h: Int, m: Int) {
+        sp(c).edit().putInt("avisoHora", h).putInt("avisoMin", m).apply()
+    }
+
+    // ----- Aspecto -----
+    fun fondoAlfa(c: Context): Int = sp(c).getInt("fondoAlfa", 100)
+    fun setFondoAlfa(c: Context, v: Int) {
+        sp(c).edit().putInt("fondoAlfa", v).apply()
+    }
+
+    fun oscuro(c: Context): Boolean = sp(c).getBoolean("oscuro", false)
+    fun setOscuro(c: Context, v: Boolean) {
+        sp(c).edit().putBoolean("oscuro", v).apply()
+    }
+
+    fun mostrarSaldo(c: Context): Boolean = sp(c).getBoolean("mostrarSaldo", true)
+    fun setMostrarSaldo(c: Context, v: Boolean) {
+        sp(c).edit().putBoolean("mostrarSaldo", v).apply()
+    }
 }
